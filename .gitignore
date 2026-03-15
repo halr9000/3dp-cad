@@ -29,6 +29,8 @@ Desktop.ini
 outputs/
 logs/*.log
 logs/*.log.*
+dist/
+.venv/
 
 # Environment
 .env

@@ -36,12 +36,11 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        # Add extra fields from LogRecord
-        for key in ("request_id", "tool", "duration_ms", "success", "args", "model_name", "error"):
+        # Add extra fields from LogRecord (avoid reserved names like 'args')
+        for key in ("request_id", "tool", "duration_ms", "success", "tool_args", "model_name", "error"):
             if hasattr(record, key):
                 value = getattr(record, key)
-                if key == "args" and isinstance(value, dict):
-                    # Sanitize: truncate large values, redact sensitive
+                if key == "tool_args" and isinstance(value, dict):
                     value = {k: _sanitize_arg(v) for k, v in value.items()}
                 log_entry[key] = value
 
@@ -124,7 +123,7 @@ def log_tool_call(
         extra={
             "request_id": rid,
             "tool": tool_name,
-            "args": args,
+            "tool_args": args,
         },
     )
 
