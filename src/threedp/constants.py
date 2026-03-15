@@ -43,4 +43,8 @@ VIEW_DIRECTIONS: dict[str, tuple[float, float, float]] = {
     "top":    (0,  0, 1),
     "bottom": (0,  0, -1),
     "iso":    (1, -1, 1),
+    # Additional isometric variations for 2D view export
+    "isometric": (1, -1, 1),
+    "dimetric": (1, -0.5, 1),
+    "trimetric": (1, -0.7, 0.5),
 }

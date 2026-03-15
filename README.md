@@ -4,7 +4,7 @@ MCP server for 3D-printable CAD modeling with build123d, targeting STL export fo
 
 ## Features
 
-- **33 MCP tools** for complete CAD workflow
+- **34 MCP tools** for complete CAD workflow
 - **Cross-platform**: macOS, Linux, Windows
 - **Structured logging**: JSON logs with request correlation, timing, and file rotation
 - **Modular architecture**: Clean separation of concerns across 6 tool domains
@@ -43,7 +43,8 @@ src/threedp/
     ├── analysis.py    # printability, overhangs, orientation, estimate, section, drawing
     ├── features.py    # text, threads, shrinkage, pack, convert, color_split
     ├── parametric.py  # enclosure, gear, snap_fit, hinge, dovetail, label
-    └── community.py   # search, publish_github, publish_thingiverse, publish_myminifactory, publish_cults3d
+    ├── community.py   # search, publish_github, publish_thingiverse, publish_myminifactory, publish_cults3d
+    └── export_2d.py   # export_2d_view with metadata support
 ```
 
 ## Configuration
@@ -101,12 +102,91 @@ src/threedp/
 - `create_dovetail(name, type, width, height, depth, angle, clearance)` — Male/female dovetail joints
 - `generate_label(name, text, size, font_size, qr_data)` — 3D-printable label with optional QR code
 
+### 2D View Export (with Metadata)
+- `export_2d_view(name, view, format, dpi, compression)` — Export 2D views from 3D models
+
 ### Community & Publishing
 - `search_models(query, source, max_results)` — Search Thingiverse for 3D models
 - `publish_github_release(name, repo, tag, description, formats, draft)` — Upload to GitHub Releases
 - `publish_thingiverse(name, title, description, tags, category, is_wip)` — Publish to Thingiverse
 - `publish_myminifactory(name, title, description, tags, category_id)` — Publish to MyMiniFactory
 - `publish_cults3d(name, title, description, tags, license, free, price_cents)` — Publish to Cults3D
+
+## export_2d_view Tool Reference
+
+The `export_2d_view` tool exports 2D views of 3D models to SVG (vector) or PNG/WebP (bitmap) formats.
+
+### Supported Views
+
+| View | Direction | Description |
+|------|-----------|-------------|
+| `top` | +Z | View from above |
+| `bottom` | -Z | View from below |
+| `front` | -Y | View from front |
+| `back` | +Y | View from back |
+| `right` | +X | View from right side |
+| `left` | -X | View from left side |
+| `isometric` | (1, -1, 1) | Standard isometric view |
+| `dimetric` | (1, -0.5, 1) | Dimetric projection |
+| `trimetric` | (1, -0.7, 0.5) | Trimetric projection |
+
+### Supported Formats
+
+| Format | Type | Best For | Metadata |
+|--------|------|----------|----------|
+| `svg` | Vector | Documentation, editing | XML comments |
+| `png` | Bitmap | Sharing, presentations | EXIF chunks |
+| `webp` | Bitmap | Web, smaller files | EXIF data |
+
+### Parameters
+
+- `name` — Name of the previously created model
+- `view` — View direction (see table above)
+- `format` — Export format: `svg`, `png`, or `webp`
+- `dpi` — Resolution for bitmap formats (default: 150)
+- `compression` — For bitmap: `lossless` (default) or `lossy`
+
+### Usage Examples
+
+```python
+# Export top view as SVG
+export_2d_view(name="my_box", view="top", format="svg")
+
+# Export isometric view as high-res PNG
+export_2d_view(name="my_box", view="isometric", format="png", dpi=300)
+
+# Export front view with lossy compression
+export_2d_view(name="my_box", view="front", format="webp", compression="lossy")
+```
+
+## Metadata System
+
+All exports include embedded metadata that can be extracted later for traceability.
+
+### Metadata Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `model_name` | string | Name of the 3D model |
+| `creation_timestamp` | ISO 8601 | When the export was created (UTC) |
+| `source_code_hash` | string | SHA-256 hash of the source code |
+| `view_angle` | string | View direction used |
+| `exporter_version` | string | Version of the 3DP CAD exporter |
+| `export_format` | string | Output format |
+| `dpi` | number | Resolution (bitmap formats only) |
+| `compression` | string | Compression type (bitmap formats only) |
+
+### Extracting Metadata
+
+```python
+from threedp.metadata import extract_svg_metadata, extract_png_metadata
+
+# Extract from SVG
+metadata = extract_svg_metadata(Path("model_top.svg"))
+
+# Extract from PNG
+metadata = extract_png_metadata(Path("model_isometric.png"))
+```
 
 ## build123d Coding Patterns
 

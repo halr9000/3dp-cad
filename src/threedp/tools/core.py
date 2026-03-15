@@ -14,6 +14,12 @@ from threedp.helpers import (
     shape_to_model_entry,
 )
 from threedp.logging_config import get_logger, log_tool_call, new_request_id
+from threedp.metadata import (
+    create_metadata,
+    embed_stl_metadata,
+    embed_step_metadata,
+    embed_3mf_metadata,
+)
 from threedp.model_store import ModelStore
 
 log = get_logger()
@@ -58,6 +64,17 @@ def register_tools(mcp: Any, store: ModelStore, config: ServerConfig) -> None:
                 export_stl(result["shape"], str(stl_path))
                 export_step(result["shape"], str(step_path))
 
+                # Embed metadata in 3D files
+                metadata = create_metadata(
+                    model_name=name,
+                    source_code=code,
+                    view_angle="3d",
+                    export_format="stl",
+                )
+                embed_stl_metadata(stl_path, metadata)
+                metadata["export_format"] = "step"
+                embed_step_metadata(step_path, metadata)
+
                 log.info("model_created", extra={
                     "request_id": rid, "model_name": name,
                     "bbox": result["bbox"], "volume": result["volume"],
@@ -93,17 +110,39 @@ def register_tools(mcp: Any, store: ModelStore, config: ServerConfig) -> None:
                 fmt = format.lower().strip(".")
                 out_path = d / f"{name}.{fmt}"
 
+                source_code = entry.get("code", "")
                 if fmt == "stl":
                     from build123d import export_stl
                     export_stl(entry["shape"], str(out_path))
+                    metadata = create_metadata(
+                        model_name=name,
+                        source_code=source_code,
+                        view_angle="3d",
+                        export_format="stl",
+                    )
+                    embed_stl_metadata(out_path, metadata)
                 elif fmt == "step":
                     from build123d import export_step
                     export_step(entry["shape"], str(out_path))
+                    metadata = create_metadata(
+                        model_name=name,
+                        source_code=source_code,
+                        view_angle="3d",
+                        export_format="step",
+                    )
+                    embed_step_metadata(out_path, metadata)
                 elif fmt == "3mf":
                     from build123d import Mesher
                     with Mesher() as mesher:
                         mesher.add_shape(entry["shape"])
                         mesher.write(str(out_path))
+                    metadata = create_metadata(
+                        model_name=name,
+                        source_code=source_code,
+                        view_angle="3d",
+                        export_format="3mf",
+                    )
+                    embed_3mf_metadata(out_path, metadata)
                 else:
                     return json.dumps({"success": False, "error": f"Unsupported format: {fmt}"})
 

@@ -84,7 +84,7 @@ class TestViewDirections:
 
     def test_all_standard_views(self) -> None:
         """Test that standard orthographic views are present."""
-        expected = {"front", "back", "right", "left", "top", "bottom", "iso"}
+        expected = {"front", "back", "right", "left", "top", "bottom", "iso", "isometric", "dimetric", "trimetric"}
         assert set(VIEW_DIRECTIONS.keys()) == expected
 
     def test_directions_are_3tuples(self) -> None:
@@ -95,8 +95,10 @@ class TestViewDirections:
     def test_orthographic_views_are_unit_vectors(self) -> None:
         """Test that standard views have magnitude 1."""
         import math
+        # Skip diagonal views (not unit vectors by design)
+        diagonal_views = {"iso", "isometric", "dimetric", "trimetric"}
         for name, (x, y, z) in VIEW_DIRECTIONS.items():
-            if name == "iso":  # iso is diagonal, skip
+            if name in diagonal_views:
                 continue
             magnitude = math.sqrt(x**2 + y**2 + z**2)
             assert magnitude == pytest.approx(1.0, abs=0.01), f"{name} magnitude should be 1"

@@ -36,7 +36,7 @@ mcp = FastMCP(config.server_name)
 
 # ── Register Tools ───────────────────────────────────────────────────────────
 
-from threedp.tools import core, transforms, analysis, features, parametric, community
+from threedp.tools import core, transforms, analysis, features, parametric, community, export_2d
 
 core.register_tools(mcp, store, config)
 log.info("tools_registered", extra={"module": "core", "count": 6})
@@ -56,7 +56,10 @@ log.info("tools_registered", extra={"module": "parametric", "count": 6})
 community.register_tools(mcp, store, config)
 log.info("tools_registered", extra={"module": "community", "count": 5})
 
-log.info("server_ready", extra={"total_tools": 33, "transport": config.transport})
+export_2d.register_tools(mcp, store, config)
+log.info("tools_registered", extra={"module": "export_2d", "count": 1})
+
+log.info("server_ready", extra={"total_tools": 34, "transport": config.transport})
 
 # ── Entry Point ──────────────────────────────────────────────────────────────
 
