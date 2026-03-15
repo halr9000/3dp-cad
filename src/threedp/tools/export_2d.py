@@ -44,29 +44,28 @@ VIEW_ANGLES_3D: dict[str, tuple[float, float]] = {
 # ── Export Functions ─────────────────────────────────────────────────────────
 
 def _shape_to_trimesh(shape: Any) -> Any:
-    """Convert build123d shape to trimesh object for rendering."""
+    """Convert build123d shape to trimesh object for rendering.
+    
+    Uses STL export instead of Mesher directly, as STL export
+    handles meshing more robustly.
+    """
     try:
         import trimesh
-        from build123d import Mesher
-        from io import BytesIO
-        
-        # Export to STL in memory
-        mesher = Mesher()
-        mesher.add_shape(shape)
-        
-        # Write to bytes using a temporary buffer
+        from build123d import export_stl
         import tempfile
+        import os
+        
+        # Export to STL file (more robust than Mesher.add_shape)
         with tempfile.NamedTemporaryFile(suffix='.stl', delete=False) as tmp:
             tmp_path = tmp.name
         
         try:
-            mesher.write(tmp_path)
+            export_stl(shape, tmp_path)
             mesh = trimesh.load(tmp_path)
+            return mesh
         finally:
-            import os
             os.unlink(tmp_path)
         
-        return mesh
     except ImportError:
         return None
     except Exception as e:
