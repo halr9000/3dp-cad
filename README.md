@@ -16,8 +16,8 @@ MCP server for 3D-printable CAD modeling with build123d, targeting STL export fo
 
 ```bash
 # Clone
-git clone https://github.com/brs077/3dp-mcp-server.git
-cd 3dp-mcp-server
+git clone https://github.com/halr9000/3dp-cad.git
+cd 3dp-cad
 
 # Setup (pick your platform)
 bash setup.sh           # macOS / Linux
@@ -136,6 +136,10 @@ result = fillet(result.edges(), radius=1)
 - Overhangs: keep under 45° or design for supports
 - Units: always millimeters
 - Tolerances: add 0.2mm clearance for press-fit joints
+
+## Credits
+
+Based on the original [3DP MCP Server](https://github.com/brs077/3dp-mcp-server) by [brs077](https://github.com/brs077). This fork extends and adapts the original work for OpenClaw integration.
 
 ## License
 
