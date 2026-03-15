@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "3dp-cad-mcp-server"
+version = "2.0.0"
+description = "MCP server for 3D-printable CAD modeling with build123d"
+readme = "README.md"
+license = {text = "CC BY-NC-ND 4.0"}
+requires-python = ">=3.11"
+authors = [
+    {name = "brs077"},
+]
+keywords = ["mcp", "3d-printing", "cad", "build123d", "stl", "bambu-lab"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "build123d>=0.7",
+    "mcp[cli]>=1.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "bd_warehouse",
+    "qrcode>=7.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/brs077/3dp-mcp-server"
+Issues = "https://github.com/brs077/3dp-mcp-server/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true

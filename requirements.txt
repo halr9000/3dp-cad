@@ -1,0 +1,5 @@
+# 3DP CAD MCP Server
+build123d>=0.7
+mcp[cli]>=1.0
+bd_warehouse
+qrcode>=7.0
