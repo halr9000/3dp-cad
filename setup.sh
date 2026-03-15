@@ -35,7 +35,7 @@ if [ -z "$PYTHON" ] && command -v python3 &>/dev/null; then
         echo "  export PATH=\"\$HOME/.miniforge/bin:\$PATH\""
         echo "  mamba create -n 3dp-cad python=3.12 -y"
         echo "  mamba install -n 3dp-cad -c conda-forge cadquery ocp -y"
-        echo "  mamba run -n 3dp-cad pip install build123d mcp pillow cairosvg"
+        echo "  mamba run -n 3dp-cad pip install build123d mcp pillow cairosvg matplotlib trimesh"
         echo ""
         echo "Option 2: Install Python 3.11 or 3.12"
         echo "  brew install python@3.12  (macOS)"
@@ -56,7 +56,7 @@ if [ -z "$PYTHON" ] && command -v python3 &>/dev/null; then
             echo "[INFO] Installing cadquery and OCP..."
             mamba install -n 3dp-cad -c conda-forge cadquery ocp -y
             echo "[INFO] Installing Python packages..."
-            mamba run -n 3dp-cad pip install build123d mcp pillow cairosvg
+            mamba run -n 3dp-cad pip install build123d mcp pillow cairosvg matplotlib trimesh
             echo "[OK] Conda environment '3dp-cad' ready."
             echo ""
             echo "To use: export PATH=\"\$HOME/.miniforge/bin:\$PATH\" && mamba run -n 3dp-cad python src/threedp/server.py"
@@ -80,7 +80,7 @@ source "$VENV_DIR/bin/activate"
 
 echo "Installing dependencies (this may take a few minutes for build123d)..."
 pip install --upgrade pip -q
-pip install "build123d>=0.7" "mcp[cli]>=1.0" "bd_warehouse" "qrcode>=7.0" -q
+pip install "build123d>=0.7" "mcp[cli]>=1.0" "bd_warehouse" "qrcode>=7.0" "matplotlib" "trimesh" -q
 
 echo ""
 echo "[OK] Dependencies installed"

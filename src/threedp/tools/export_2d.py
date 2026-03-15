@@ -27,7 +27,150 @@ VALID_2D_VIEWS = frozenset([
     "isometric", "dimetric", "trimetric", "iso"
 ])
 
+# View angles for 3D rendering (elevation, azimuth in degrees)
+VIEW_ANGLES_3D: dict[str, tuple[float, float]] = {
+    "top": (90, -90),
+    "bottom": (-90, -90),
+    "front": (0, -90),
+    "back": (0, 90),
+    "right": (0, 0),
+    "left": (0, 180),
+    "isometric": (30, 45),
+    "iso": (30, 45),
+    "dimetric": (25, 60),
+    "trimetric": (35, 70),
+}
+
 # ── Export Functions ─────────────────────────────────────────────────────────
+
+def _shape_to_trimesh(shape: Any) -> Any:
+    """Convert build123d shape to trimesh object for rendering."""
+    try:
+        import trimesh
+        from build123d import Mesher
+        from io import BytesIO
+        
+        # Export to STL in memory
+        mesher = Mesher()
+        mesher.add_shape(shape)
+        
+        # Write to bytes using a temporary buffer
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.stl', delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        try:
+            mesher.write(tmp_path)
+            mesh = trimesh.load(tmp_path)
+        finally:
+            import os
+            os.unlink(tmp_path)
+        
+        return mesh
+    except ImportError:
+        return None
+    except Exception as e:
+        log.error("trimesh_conversion_failed", extra={"error": str(e)})
+        return None
+
+
+def _render_3d_view_matplotlib(
+    shape: Any,
+    output_path: Path,
+    view_name: str,
+    dpi: int = 150,
+) -> bool:
+    """Render a 3D view using matplotlib with proper 3D projection.
+    
+    This creates a shaded, perspective-correct image that shows the 3D nature
+    of the model with proper depth cues.
+    """
+    try:
+        import matplotlib
+        matplotlib.use('Agg')  # Non-interactive backend
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        import numpy as np
+        
+        # Get view angles
+        elev, azim = VIEW_ANGLES_3D.get(view_name, (30, 45))
+        
+        # Create figure
+        fig = plt.figure(figsize=(8, 8), dpi=dpi)
+        ax = fig.add_subplot(111, projection='3d')
+        
+        # Try to use trimesh for better rendering
+        mesh = _shape_to_trimesh(shape)
+        
+        if mesh is not None:
+            # Use trimesh for rendering
+            vertices = mesh.vertices
+            faces = mesh.faces
+            
+            # Create 3D collection
+            face_collection = Poly3DCollection(
+                vertices[faces],
+                alpha=0.9,
+                facecolor='lightblue',
+                edgecolor='darkblue',
+                linewidth=0.5
+            )
+            ax.add_collection3d(face_collection)
+            
+            # Set limits based on bounding box
+            bbox = shape.bounding_box()
+            ax.set_xlim(bbox.min.X, bbox.max.X)
+            ax.set_ylim(bbox.min.Y, bbox.max.Y)
+            ax.set_zlim(bbox.min.Z, bbox.max.Z)
+        else:
+            # Fallback: use matplotlib's built-in 3D capabilities
+            # This won't look as good but works without trimesh
+            from build123d import section, Plane
+            
+            # Create a grid of cross-sections
+            bbox = shape.bounding_box()
+            z_steps = 20
+            z_vals = np.linspace(bbox.min.Z, bbox.max.Z, z_steps)
+            
+            for z in z_vals:
+                try:
+                    plane = Plane.XY.offset(z)
+                    section_result = section(shape, plane)
+                    # Plot the section (simplified)
+                    if hasattr(section_result, 'vertices'):
+                        verts = [(v.X, v.Y, z) for v in section_result.vertices()]
+                        if verts:
+                            xs, ys, zs = zip(*verts)
+                            ax.plot(xs, ys, zs, 'b-', alpha=0.3, linewidth=0.5)
+                except Exception:
+                    pass
+            
+            ax.set_xlim(bbox.min.X, bbox.max.X)
+            ax.set_ylim(bbox.min.Y, bbox.max.Y)
+            ax.set_zlim(bbox.min.Z, bbox.max.Z)
+        
+        # Set view angle
+        ax.view_init(elev=elev, azim=azim)
+        
+        # Remove axes for clean look
+        ax.set_axis_off()
+        
+        # Equal aspect ratio
+        ax.set_box_aspect([1, 1, 1])
+        
+        # Save
+        plt.tight_layout(pad=0)
+        plt.savefig(output_path, dpi=dpi, bbox_inches='tight', 
+                   pad_inches=0.1, facecolor='white', edgecolor='none')
+        plt.close(fig)
+        
+        return True
+        
+    except Exception as e:
+        log.error("3d_render_failed", extra={"path": str(output_path), "error": str(e)})
+        return False
+
 
 def _project_shape_to_2d(shape: Any, view_direction: tuple[float, float, float]) -> Any:
     """Project a 3D shape to 2D by sectioning along the view direction.
@@ -109,16 +252,21 @@ def export_view_to_png(
     output_path: Path,
     view_direction: tuple[float, float, float],
     metadata: dict[str, Any],
+    view_name: str = "",
     dpi: int = 150,
     compression: str = "lossless",
 ) -> bool:
-    """Export a single view to PNG format.
+    """Export a single view to PNG format with 3D rendering.
+    
+    Uses matplotlib to create a proper 3D shaded view of the model.
+    Falls back to SVG rasterization if 3D rendering fails.
     
     Args:
         shape: build123d Shape object
         output_path: Path to save the PNG
         view_direction: (x, y, z) vector for view direction
         metadata: Metadata dictionary to embed
+        view_name: Name of the view for angle lookup
         dpi: Resolution in dots per inch
         compression: "lossless" or "lossy"
         
@@ -126,7 +274,12 @@ def export_view_to_png(
         True if successful, False otherwise
     """
     try:
-        # First export to SVG, then rasterize
+        # Try 3D rendering first for better visual
+        if view_name and _render_3d_view_matplotlib(shape, output_path, view_name, dpi):
+            embed_png_metadata(output_path, metadata)
+            return True
+        
+        # Fallback to SVG rasterization
         from build123d import ExportSVG
         
         temp_svg = output_path.with_suffix('.temp.svg')
@@ -162,16 +315,21 @@ def export_view_to_webp(
     output_path: Path,
     view_direction: tuple[float, float, float],
     metadata: dict[str, Any],
+    view_name: str = "",
     dpi: int = 150,
     compression: str = "lossless",
 ) -> bool:
-    """Export a single view to WebP format.
+    """Export a single view to WebP format with 3D rendering.
+    
+    Uses matplotlib to create a proper 3D shaded view of the model.
+    Falls back to SVG rasterization if 3D rendering fails.
     
     Args:
         shape: build123d Shape object
         output_path: Path to save the WebP
         view_direction: (x, y, z) vector for view direction
         metadata: Metadata dictionary to embed
+        view_name: Name of the view for angle lookup
         dpi: Resolution in dots per inch
         compression: "lossless" or "lossy"
         
@@ -179,6 +337,22 @@ def export_view_to_webp(
         True if successful, False otherwise
     """
     try:
+        # Try 3D rendering first
+        temp_png = output_path.with_suffix('.temp.png')
+        if view_name and _render_3d_view_matplotlib(shape, temp_png, view_name, dpi):
+            # Convert PNG to WebP
+            from PIL import Image
+            img = Image.open(temp_png)
+            quality = 85 if compression == "lossy" else 100
+            method = 6 if compression == "lossless" else 4
+            img.save(output_path, format="WEBP", quality=quality, method=method)
+            temp_png.unlink()
+            embed_webp_metadata(output_path, metadata)
+            return True
+        if temp_png.exists():
+            temp_png.unlink()
+        
+        # Fallback to SVG rasterization
         from build123d import ExportSVG
         
         temp_svg = output_path.with_suffix('.temp.svg')
@@ -410,9 +584,9 @@ def register_tools(mcp: Any, store: ModelStore, config: ServerConfig) -> None:
                 if format_lower == "svg":
                     success = export_view_to_svg(shape, output_path, view_direction, view_lower, metadata)
                 elif format_lower == "png":
-                    success = export_view_to_png(shape, output_path, view_direction, metadata, dpi, compression)
+                    success = export_view_to_png(shape, output_path, view_direction, metadata, view_lower, dpi, compression)
                 elif format_lower == "webp":
-                    success = export_view_to_webp(shape, output_path, view_direction, metadata, dpi, compression)
+                    success = export_view_to_webp(shape, output_path, view_direction, metadata, view_lower, dpi, compression)
                 
                 if not success:
                     return json.dumps({
