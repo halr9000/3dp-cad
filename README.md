@@ -27,6 +27,8 @@ powershell -ExecutionPolicy Bypass -File setup.ps1   # Windows
 
 That's it. Start a new Claude Code session and ask it to create a model.
 
+> **Note for Python 3.14+ users:** build123d requires Conda/Mamba due to binary dependencies. The setup script will detect Python 3.14+ and offer to install Miniforge automatically. Alternatively, install Python 3.11 or 3.12 for standard venv support.
+
 ## Architecture
 
 ```

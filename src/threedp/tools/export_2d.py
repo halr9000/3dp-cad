@@ -29,6 +29,37 @@ VALID_2D_VIEWS = frozenset([
 
 # ── Export Functions ─────────────────────────────────────────────────────────
 
+def _project_shape_to_2d(shape: Any, view_direction: tuple[float, float, float]) -> Any:
+    """Project a 3D shape to 2D by sectioning along the view direction.
+    
+    Returns a list of Faces representing the projection.
+    """
+    from build123d import Plane, section, Vector
+    import math
+    
+    dx, dy, dz = view_direction
+    
+    # Normalize the direction
+    length = math.sqrt(dx*dx + dy*dy + dz*dz)
+    if length > 0:
+        dx, dy, dz = dx/length, dy/length, dz/length
+    
+    # Create a plane perpendicular to the view direction
+    # Default plane is XY, we need to orient it to face the view direction
+    if abs(dz) > 0.99:  # Top or bottom view
+        plane = Plane.XY.offset(shape.center().Z)
+    elif abs(dy) > 0.99:  # Front or back view
+        plane = Plane.XZ.offset(shape.center().Y)
+    elif abs(dx) > 0.99:  # Left or right view
+        plane = Plane.YZ.offset(shape.center().X)
+    else:  # Isometric - use XY with offset
+        plane = Plane.XY.offset(shape.center().Z)
+    
+    # Get the cross-section of the shape at the center plane
+    result = section(shape, plane)
+    return result
+
+
 def export_view_to_svg(
     shape: Any,
     output_path: Path,
@@ -51,19 +82,15 @@ def export_view_to_svg(
         True if successful, False otherwise
     """
     try:
-        from build123d import ExportSVG, Vector
+        from build123d import ExportSVG
+        
+        # Project to 2D
+        projected = _project_shape_to_2d(shape, view_direction)
         
         exporter = ExportSVG(scale=scale)
         layer_name = f"view_{view_name}"
         exporter.add_layer(layer_name)
-        
-        direction = Vector(*view_direction)
-        exporter.add_shape(
-            shape,
-            layer=layer_name,
-            line_type=ExportSVG.LineType.VISIBLE,
-            view_port_origin=direction
-        )
+        exporter.add_shape(projected, layer=layer_name)
         
         exporter.write(str(output_path))
         
@@ -100,14 +127,16 @@ def export_view_to_png(
     """
     try:
         # First export to SVG, then rasterize
-        from build123d import ExportSVG, Vector
+        from build123d import ExportSVG
         
         temp_svg = output_path.with_suffix('.temp.svg')
         
+        # Project to 2D
+        projected = _project_shape_to_2d(shape, view_direction)
+        
         exporter = ExportSVG(scale=1.0)
         exporter.add_layer("view")
-        direction = Vector(*view_direction)
-        exporter.add_shape(shape, layer="view", line_type=ExportSVG.LineType.VISIBLE, view_port_origin=direction)
+        exporter.add_shape(projected, layer="view")
         exporter.write(str(temp_svg))
         
         # Rasterize SVG to PNG using available libraries
@@ -150,14 +179,16 @@ def export_view_to_webp(
         True if successful, False otherwise
     """
     try:
-        from build123d import ExportSVG, Vector
+        from build123d import ExportSVG
         
         temp_svg = output_path.with_suffix('.temp.svg')
         
+        # Project to 2D
+        projected = _project_shape_to_2d(shape, view_direction)
+        
         exporter = ExportSVG(scale=1.0)
         exporter.add_layer("view")
-        direction = Vector(*view_direction)
-        exporter.add_shape(shape, layer="view", line_type=ExportSVG.LineType.VISIBLE, view_port_origin=direction)
+        exporter.add_shape(projected, layer="view")
         exporter.write(str(temp_svg))
         
         # Rasterize SVG to WebP
